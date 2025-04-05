@@ -16,7 +16,7 @@ export async function generateSuggestion(
 ): Promise<string | null> {
   if (!input) return null;
 
-  const prompt = `Provide the next letters, words, or sentences to complete the input without the input itself and strictly excluding the input. \n\n${input}\n\nSuggestion:`;
+  const prompt = `Provide the next letters, words, or sentences to complete the input without the input itself and strictly excluding the input. The output should end if a punctuation is generated \n\n${input}\n\nSuggestion:`;
 
 
   try {

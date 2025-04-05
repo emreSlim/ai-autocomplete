@@ -2,14 +2,21 @@ const serverURL = "http://localhost:3000/suggest";
 
 console.log("Autocomplete extension loaded 🚀");
 
+let abortController = null;
+
 async function fetchSuggestion(inputValue) {
+  if (abortController) {
+    abortController.abort(); // Cancel the previous request
+  }
+  abortController = new AbortController();
+  const signal = abortController.signal;  
   const res = await fetch(serverURL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ input: inputValue })
-
+    body: JSON.stringify({ input: inputValue }),
+    signal: signal
   });
 
   if (!res.ok) return null;
@@ -18,7 +25,9 @@ async function fetchSuggestion(inputValue) {
 }
 
 
+const DEBOUNCE_DELAY = 700; // milliseconds
 let timeout = null;
+
 
 const clearTimeoutCustom = () => {
   if(timeout) {
@@ -29,6 +38,9 @@ const clearTimeoutCustom = () => {
 
 async function handleInput(target){
   const currentValue = target.value;
+  if (currentValue.length < 5 || 
+    !currentValue.endsWith(" ")
+  ) return; // Minimum length for suggestion
 
   const suggestion = await fetchSuggestion(currentValue);
 
@@ -50,10 +62,11 @@ document.addEventListener(
       clearTimeoutCustom();
 
       timeout = setTimeout(() => {
+        timeout = null;
         handleInput(target).catch(console.error);
         //remove  blur event listener
         target.removeEventListener("blur", clearTimeoutCustom);
-      }, 2000); 
+      }, DEBOUNCE_DELAY); 
 
       target.addEventListener("blur", clearTimeoutCustom, { once: true });
     }
