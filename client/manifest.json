@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Text Autocomplete",
+  "name": "AI Autocomplete",
   "version": "1.0",
   "description": "Autocomplete input fields with AI suggestions",
   "permissions": ["scripting"],

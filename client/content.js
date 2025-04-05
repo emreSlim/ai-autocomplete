@@ -4,72 +4,107 @@ console.log("Autocomplete extension loaded 🚀");
 
 let abortController = null;
 
-async function fetchSuggestion(inputValue) {
-  if (abortController) {
-    abortController.abort(); // Cancel the previous request
-  }
+const fetchSuggestion = async (inputValue) => {
   abortController = new AbortController();
-  const signal = abortController.signal;  
+  const signal = abortController.signal;
   const res = await fetch(serverURL, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({ input: inputValue }),
-    signal: signal
+    signal: signal,
   });
 
   if (!res.ok) return null;
   const data = await res.json();
   return data.suggestion;
-}
+};
 
-
-const DEBOUNCE_DELAY = 700; // milliseconds
+const DEBOUNCE_DELAY = 1000; // milliseconds
 let timeout = null;
 
+const cleanup = () => {
+  if (abortController) {
+    abortController.abort(); // Cancel the previous request
+    abortController = null;
+  }
 
-const clearTimeoutCustom = () => {
-  if(timeout) {
+  if (timeout) {
     clearTimeout(timeout);
     timeout = null;
   }
-}
 
-async function handleInput(target){
-  const currentValue = target.value;
-  if (currentValue.length < 5 || 
-    !currentValue.endsWith(" ")
-  ) return; // Minimum length for suggestion
+  target.removeEventListener("blur", cleanup);
+};
 
-  const suggestion = await fetchSuggestion(currentValue);
+let currentInputElement = null;
 
-  if (document.activeElement !== target) return;
-  if (!suggestion) return;
+function setupKeydownListener() {
+  // accept next word and leave the rest selected only if some text is selected
+  const handleArrowRight = (target) => {
+    const currentValue = target.value;
 
-  target.value += suggestion;
-  target.setSelectionRange(currentValue.length, target.value.length); 
-}
+    if (target.selectionStart !== target.selectionEnd) {
+      // If some text is selected, accept the next word and leave the rest selected
 
-document.addEventListener(
-  "input",
-  (event) => {
-    const target = event.target;
-    if (target.tagName === "TEXTAREA" || (target.tagName === "INPUT" && (target.type == "text" || target.type == "search"))) {
-      
-      //remove blur event listener if it exists
-      target.removeEventListener("blur", clearTimeoutCustom);
-      clearTimeoutCustom();
+      const selectedText = currentValue.substring(target.selectionStart);
+      const nextWord = selectedText.split(" ")[0];
 
-      timeout = setTimeout(() => {
-        timeout = null;
-        handleInput(target).catch(console.error);
-        //remove  blur event listener
-        target.removeEventListener("blur", clearTimeoutCustom);
-      }, DEBOUNCE_DELAY); 
-
-      target.addEventListener("blur", clearTimeoutCustom, { once: true });
+      target.selectionStart += nextWord.length + 1; // Move the cursor to the end of the next word
     }
-  }
-);
+  };
 
+  document.addEventListener("keydown", (event) => {
+    if (event.target === currentInputElement) {
+      if (event.key === "ArrowRight") {
+        event.preventDefault(); // Prevent the default behavior of ArrowRight
+
+        handleArrowRight(event.target); // Accept the next word and leave the rest selected
+      }
+    }
+  });
+}
+
+function setupInputListener() {
+  const handleInput = async (target) => {
+    const currentValue = target.value;
+    if (currentValue.length < 5 || !currentValue.endsWith(" ")) return; // Minimum length for suggestion
+
+    const suggestion = await fetchSuggestion(currentValue);
+
+    if (document.activeElement !== target) return;
+    if (!suggestion) return;
+
+    target.value += suggestion;
+
+    target.setSelectionRange(currentValue.length, target.value.length);
+  };
+
+  document.addEventListener("input", (event) => {
+    const target = event.target;
+    if (
+      target.tagName === "TEXTAREA" ||
+      (target.tagName === "INPUT" &&
+        (target.type == "text" || target.type == "search"))
+    ) {
+      currentInputElement = target; // Store the current input element
+
+      // cleanup
+      cleanup();
+
+      //set a new timeout
+      timeout = setTimeout(() => {
+        handleInput(target).catch(console.error);
+
+        cleanup();
+      }, DEBOUNCE_DELAY);
+
+      // Add a blur event listener to clean up when the input loses focus
+      target.addEventListener("blur", cleanup, { once: true });
+    }
+  });
+}
+
+setupInputListener();
+setupKeydownListener();

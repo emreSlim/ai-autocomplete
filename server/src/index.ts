@@ -35,6 +35,11 @@ app.post("/suggest", async (req: Request, res: Response) => {
 
   console.log("Received input:", input);
 
+  //wait for 5 second before sending the response
+  // await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    // res.json({ suggestion: "that I've been working on. It's designed to streamline your writing process by predicting and suggesting the next words or phrases as you type, helping you write faster and with fewer errors." });
+
 
   if (!input || typeof input !== "string") {
     res.status(400).json({ error: "Invalid input" });
