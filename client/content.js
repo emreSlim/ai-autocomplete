@@ -34,8 +34,6 @@ const cleanup = () => {
     clearTimeout(timeout);
     timeout = null;
   }
-
-  target.removeEventListener("blur", cleanup);
 };
 
 let currentInputElement = null;
@@ -69,7 +67,7 @@ function setupKeydownListener() {
 function setupInputListener() {
   const handleInput = async (target) => {
     const currentValue = target.value;
-    if (currentValue.length < 5 || !currentValue.endsWith(" ")) return; // Minimum length for suggestion
+    if (currentValue.length < 5 || !/\s$/.test(currentValue)) return; // Minimum length for suggestion
 
     const suggestion = await fetchSuggestion(currentValue);
 
@@ -89,15 +87,12 @@ function setupInputListener() {
         (target.type == "text" || target.type == "search"))
     ) {
       currentInputElement = target; // Store the current input element
-
       // cleanup
       cleanup();
 
       //set a new timeout
       timeout = setTimeout(() => {
         handleInput(target).catch(console.error);
-
-        cleanup();
       }, DEBOUNCE_DELAY);
 
       // Add a blur event listener to clean up when the input loses focus
